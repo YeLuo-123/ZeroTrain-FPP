@@ -1,0 +1,33 @@
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Official/private datasets and generated downloads
+Dataset/
+data/
+
+# Training checkpoints and logs
+runs/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+events.out.tfevents.*
+
+# Generated experiment artifacts
+results/*
+!results/udpr_official_baseline.json
+
+# Locally supplied reference papers
+refernces/*.pdf
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,68 @@
+\section{Experiments}
+\subsection{Datasets and Protocol}
+We evaluate fringe-break restoration under four-step phase shifting.
+DL-SLP contains more than 10,000 physically acquired fringe--height pairs,
+whereas SynthFringe (SFNet) maps two fringes to absolute phase. Middlebury
+provides stereo images and structured-light-derived disparity, but no projected
+fringe sequence. We therefore use each dataset only under its native protocol
+and never reinterpret RGB views as phase shifts. Four-step samples are split by
+object (70/15/15\%) to prevent leakage.
+
+For each clean sequence, a deterministic degradation generator creates
+irregular missing regions, saturated highlights, rectangular occlusions,
+Gaussian noise, and salt-and-pepper noise. Missing-area targets are
+$r\in\{5,10,20,30\}\%$. The same mask is retained for masked evaluation.
+
+\subsection{Compared Methods and Metrics}
+We compare damaged-input PSP, Telea--PSP, Navier--Stokes--PSP, U-Net,
+Pix2Pix, direct fringe-to-phase regression, and our dual-head
+physics-informed phase restoration network. Image quality is measured by PSNR
+and SSIM; circular wrapped-phase error is
+\begin{equation}
+e_\phi=\operatorname{atan2}(\sin(\hat\phi-\phi),\cos(\hat\phi-\phi)).
+\end{equation}
+We report phase RMSE, depth RMSE in calibrated metric units, symmetric Chamfer
+distance, parameter count, FLOPs, latency, and FPS.
+
+\subsection{Objective}
+Given $I_k=A+B\cos(\phi+k\pi/2)$, the total objective is
+\begin{equation}
+\mathcal L=\mathcal L_{\rm phase}+
+\lambda_s\mathcal L_{\rm shift}+
+\lambda_g\mathcal L_{\rm grad}+
+\lambda_d\mathcal L_{\rm depth}+
+\lambda_f\mathcal L_{\rm fringe}.
+\end{equation}
+The phase term uses circular distance $1-\cos(\hat\phi-\phi)$, avoiding the
+$-\pi/\pi$ branch-cut artifact. The shift term reprojects the predicted phase
+to all four observations. The gradient term emphasizes damaged boundaries,
+and the geometry term is evaluated only at valid calibrated pixels.
+
+\begin{table}[t]
+\centering
+\caption{Main comparison (mean$\pm$std over three seeds). Dashes must not be
+replaced by uncalibrated proxy values.}
+\begin{tabular}{lccccc}
+\hline
+Method & PSNR$\uparrow$ & SSIM$\uparrow$ & Phase RMSE$\downarrow$
+& Depth RMSE$\downarrow$ & FPS$\uparrow$\\ \hline
+PSP & -- & -- & -- & -- & --\\
+Telea & -- & -- & -- & -- & --\\
+U-Net & -- & -- & -- & -- & --\\
+Pix2Pix & -- & -- & -- & -- & --\\
+Fringe-to-Phase & -- & -- & -- & -- & --\\
+Ours & -- & -- & -- & -- & --\\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Ablations and Discussion}
+We remove the shift, phase, and depth terms independently, test all four damage
+ratios, and train/test across datasets. High PSNR need not imply low 3-D error:
+pixel losses favor smooth intensity interpolation, while phase is encoded by
+the relative quadrature among frames; a small correlated intensity bias can
+produce a large angular error. Reprojection constrains this inter-frame
+relation and reduces physically impossible solutions. Robustness claims are
+made only from the ratio sweep, and cross-dataset claims only from
+object-disjoint train--test transfers. Industrial deployment additionally
+requires radiometric linearization, projector-camera calibration, uncertainty
+masking, and tests on specular and discontinuous parts.

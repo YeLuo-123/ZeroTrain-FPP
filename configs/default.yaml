@@ -1,0 +1,22 @@
+seed: 42
+data:
+  root: data/processed
+  crop_size: 256
+  damage_ratio: 0.20
+  workers: 0
+model:
+  name: physics
+  base_channels: 32
+train:
+  epochs: 30
+  batch_size: 4
+  lr: 0.0002
+  device: auto
+  amp: true
+  output: runs/physics
+loss:
+  phase: 1.0
+  shift: 0.2
+  gradient: 0.1
+  depth: 0.1
+  fringe: 0.2
