@@ -22,9 +22,16 @@ events.out.tfevents.*
 # Generated experiment artifacts
 results/*
 !results/udpr_official_baseline.json
+code/dual_frequency_output*/
+code/phase_boundary_dataset_v*/
 
 # Locally supplied reference papers
 refernces/*.pdf
+references_temp/
+refernces.zip
+
+# Packaged/generated deliverables
+*.zip
 
 # Editors and operating systems
 .idea/
