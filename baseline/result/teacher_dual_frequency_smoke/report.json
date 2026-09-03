@@ -1,0 +1,18 @@
+{
+  "height": 240,
+  "width": 640,
+  "low_frequency": 2,
+  "high_frequency": 64,
+  "frequency_ratio": 32,
+  "max_wrapped_phase_error_low_rad": 1.7763568394002505e-15,
+  "max_wrapped_phase_error_high_rad": 1.2434497875801753e-14,
+  "max_wrapped_phase_error_12step_low_rad": 8.881784197001252e-16,
+  "max_wrapped_phase_error_12step_high_rad": 1.7763568394002505e-14,
+  "max_absolute_phase_error_low_rad": 1.7763568394002505e-15,
+  "max_absolute_phase_error_high_rad": 5.684341886080802e-14,
+  "wrong_K_low_pixel_count": 0,
+  "wrong_K_high_pixel_count": 0,
+  "injected_low_order_error": 1,
+  "resulting_high_order_error": 32,
+  "status": "PASS"
+}

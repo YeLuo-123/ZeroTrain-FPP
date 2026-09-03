@@ -1,0 +1,675 @@
+%!TEX program = xelatex
+\documentclass[11pt,a4paper,fontset=none]{ctexart}
+
+\usepackage{fontspec}
+\setmainfont{Noto Serif CJK SC}
+\setsansfont{Noto Sans CJK SC}
+\setmonofont{Noto Sans Mono CJK SC}
+\setCJKmainfont{Noto Serif CJK SC}
+\setCJKsansfont{Noto Sans CJK SC}
+\setCJKmonofont{Noto Sans Mono CJK SC}
+
+\usepackage[a4paper,top=2.15cm,bottom=2.05cm,left=2.15cm,right=2.15cm,headheight=15pt]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,longtable,tabularx,array,multirow}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc,shapes.geometric}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{microtype}
+
+\definecolor{navy}{HTML}{16324F}
+\definecolor{blue}{HTML}{2878B5}
+\definecolor{cyan}{HTML}{35A7B5}
+\definecolor{green}{HTML}{3A8D6D}
+\definecolor{orange}{HTML}{E48A3A}
+\definecolor{red}{HTML}{C9534F}
+\definecolor{ink}{HTML}{23313D}
+\definecolor{muted}{HTML}{60717F}
+\definecolor{light}{HTML}{F2F6F8}
+\definecolor{line}{HTML}{D4DFE5}
+
+\hypersetup{
+  colorlinks=true,
+  hypertexnames=false,
+  linkcolor=navy,
+  urlcolor=blue,
+  citecolor=green,
+  pdftitle={G1人形机器人建图、定位与自主导航项目说明书},
+  pdfauthor={G1建图导航项目组}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{muted}G1 人形机器人建图、定位与自主导航}
+\fancyhead[R]{\small\color{muted}项目汇报版说明书}
+\fancyfoot[L]{\small\color{muted}内部技术资料 · 版本 1.0}
+\fancyfoot[R]{\small\color{muted}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\titleformat{\section}{\Large\bfseries\sffamily\color{navy}}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\large\bfseries\sffamily\color{blue}}{\thesubsection}{0.65em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\sffamily\color{ink}}{\thesubsubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{1.35em}{0.65em}
+\titlespacing*{\subsection}{0pt}{1.05em}{0.45em}
+
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.28em}
+\setlist[itemize]{leftmargin=2em,itemsep=0.25em,topsep=0.35em}
+\setlist[enumerate]{leftmargin=2.2em,itemsep=0.25em,topsep=0.35em}
+\renewcommand{\arraystretch}{1.30}
+
+\newcommand{\tagbox}[2]{\tikz[baseline=(X.base)]\node[rounded corners=2pt,inner xsep=5pt,inner ysep=2pt,fill=#1,text=white,font=\sffamily\bfseries\scriptsize](X){#2};}
+\newcommand{\metric}[2]{\begin{minipage}[t]{0.47\linewidth}\centering{\sffamily\bfseries\color{blue}\Large #1}\\[-1pt]{\small\color{muted}#2}\end{minipage}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\begin{document}
+
+% -------------------- Cover --------------------
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[navy] (current page.north west) rectangle ([yshift=-10.5cm]current page.north east);
+  \fill[blue] ([yshift=-10.5cm]current page.north west) rectangle ([yshift=-10.68cm]current page.north east);
+  \fill[cyan] ([yshift=-10.68cm]current page.north west) rectangle ([yshift=-10.77cm]current page.north east);
+  \draw[draw=line,line width=0.7pt] ([xshift=2.15cm,yshift=3.0cm]current page.south west) -- ([xshift=-2.15cm,yshift=3.0cm]current page.south east);
+\end{tikzpicture}
+
+\vspace*{1.0cm}
+{\sffamily\bfseries\color{white}\large G1 AUTONOMOUS NAVIGATION PROJECT\par}
+\vspace{1.25cm}
+{\sffamily\bfseries\color{white}\fontsize{28}{36}\selectfont
+G1 人形机器人建图、定位\\[0.18em]
+与自主导航项目说明书\par}
+\vspace{0.35cm}
+{\sffamily\color{white!85}\Large 项目梗概 · 技术优化 · 创新路线规划\par}
+
+\vspace{3.4cm}
+\begin{minipage}{0.86\textwidth}
+{\sffamily\bfseries\color{navy}\large 报告定位}\par
+\vspace{0.45em}
+本报告面向项目评审、阶段汇报与技术交接，系统说明当前 G1 真机建图导航链路、相对开源基础的工程优化与算法增强，并给出从“当前会话导航”向“固定地图自主定位、三维可通行性和动态环境导航”演进的路线规划。
+\end{minipage}
+
+\vfill
+\begin{tabular}{@{}ll@{}}
+\sffamily\color{muted}项目阶段： & \sffamily 当前主链可运行，固定地图全局重定位待真机闭环验证\\
+\sffamily\color{muted}技术平台： & \sffamily Unitree G1 · Livox Mid-360 · ROS 2 Humble · SONIC\\
+\sffamily\color{muted}文档版本： & \sffamily V1.0\\
+\sffamily\color{muted}编制日期： & \sffamily 2026 年 8 月\\
+\end{tabular}
+\vspace{1.3cm}
+\end{titlepage}
+
+\pagenumbering{Roman}
+
+% -------------------- Executive summary --------------------
+\section*{管理层摘要}
+\addcontentsline{toc}{section}{管理层摘要}
+
+本项目构建了一套面向 G1 人形机器人的自主建图与导航闭环。系统以 Mid-360 激光雷达和 IMU 为主要感知输入，由 NX 侧 Faster/FAST-LIO 提供连续六自由度里程计与注册点云；工作站侧生成动态二维概率地图，完成全局路径规划、实时局部障碍保护和到达判定；导航意图最终被转换为 50 Hz Pose Token，由 NX 侧 SONIC 策略完成全身平衡与关节控制。
+
+\begin{center}
+\vspace{0.4em}
+\metric{端到端闭环}{从 LiDAR/IMU 到 G1 全身动作}\hfill
+\metric{人形专用控制}{离散 Token 与 IMU 航向闭环}\\[1.1em]
+\metric{动态概率地图}{多帧确认、高位衰减、边界保护}\hfill
+\metric{分层失效安全}{感知、定位、网络、操作员四层门控}
+\vspace{0.4em}
+\end{center}
+
+项目没有重新发明 FAST-LIO、ICP、Dijkstra 或 log-odds，而是围绕人形机器人特性完成了系统级重构：解决了坐标方向不一致、步态振动点云噪声、离散动作死区、转向惯性、动态地图频繁重规划以及网络断连后机器人姿态保持等问题。当前最有独立价值的成果集中在三方面：
+
+\begin{itemize}
+  \item \textbf{动态二维建图：}从 FAST-LIO 世界点云重新构建 G1 专用概率栅格，组合多帧证据、双高度层、动态衰减和未知边界保护；
+  \item \textbf{Token 空间导航闭环：}将连续路径转换为“转向—稳定—前进—慢行—站立”的离散全身动作序列，并用 FAST-LIO/IMU 实测姿态闭环终止动作；
+  \item \textbf{安全工程体系：}里程计、扫描、定位质量、操作员心跳、Token 时效和 NX 本地安全站立形成分层联锁。
+\end{itemize}
+
+下一阶段的关键不是继续微调二维参数，而是完成固定地图可靠重定位、建立 2.5D/3D 可通行性表达，并让局部规划直接在可执行 Token 动作空间中优化。建议采用“先定位可信，再提升规划能力，最后引入语义与学习”的三阶段路线。
+
+\clearpage
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+% -------------------- Overview --------------------
+\section{项目背景与建设目标}
+
+\subsection{应用背景}
+
+轮式机器人通常具备稳定轮速里程计和连续底盘速度接口，而人形机器人存在步态周期振动、足底打滑、机体摆动、动作切换惯性及全身平衡约束。直接套用“二维激光 SLAM + 连续速度控制器”容易出现地图散点、转向抖动、速度死区、到达反复和网络断开后失稳等问题。
+
+本项目以“\textbf{不修改世界模型和底层控制责任边界}”为原则：上层负责地图、定位、目标、路径和动作意图；SONIC 负责在机器人当前状态下生成稳定全身动作；Unitree 低层负责电机执行。
+
+\subsection{项目目标}
+
+\begin{enumerate}
+  \item 建立 Mid-360 LiDAR、IMU、Faster/FAST-LIO 与 G1 坐标系之间的统一数据链；
+  \item 从三维注册点云生成适于室内人形行走的动态二维占据地图；
+  \item 在未知区禁行和安全膨胀约束下生成可执行的全局路径；
+  \item 将路径跟踪输出映射到 SONIC Pose Token，而不是直接生成关节命令；
+  \item 在传感器、定位、网络或操作员链路异常时保证机器人停止运动并保持站立；
+  \item 为后续固定地图重定位、语义导航和动态环境预测保留标准 ROS 2 接口。
+\end{enumerate}
+
+\subsection{当前能力边界}
+
+\begin{tabularx}{\textwidth}{>{\bfseries}p{2.9cm} X >{\raggedright\arraybackslash}p{2.6cm}}
+\toprule
+能力项 & 当前状态 & 汇报口径 \\
+\midrule
+当前会话建图定位 & Faster/FAST-LIO 连续里程计与动态二维图已形成主链 & 已实现 \\
+二维自主导航 & Dijkstra、路径跟踪、局部保护和 Token 动作闭环 & 已实现 \\
+地图编辑与保存 & 支持冻结、清理、基准记录、导入和保存 & 已实现 \\
+旧地图自动重定位 & 接口、模式路由和安全门已具备；真实传感算法未完成部署验收 & 在研 \\
+回环消漂 & 当前主链不含全局回环与位姿图优化 & 未实现 \\
+动态障碍预测 & 当前为即时减速/停车，不预测人员轨迹 & 未实现 \\
+\bottomrule
+\end{tabularx}
+
+% -------------------- Architecture --------------------
+\section{系统总体架构}
+
+\subsection{端到端数据流}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  node distance=5mm and 5mm,
+  box/.style={draw=line,rounded corners=3pt,minimum height=11mm,align=center,font=\sffamily\small,inner xsep=6pt},
+  sensor/.style={box,fill=light,minimum width=25mm},
+  algo/.style={box,fill=blue!10,draw=blue!45,minimum width=29mm},
+  ctrl/.style={box,fill=green!10,draw=green!45,minimum width=27mm},
+  safe/.style={box,fill=orange!12,draw=orange!55,minimum width=27mm},
+  arrow/.style={-{Latex[length=2.2mm]},thick,draw=muted}
+]
+  \node[sensor] (lidar) {Mid-360\\点云};
+  \node[sensor,below=of lidar] (imu) {IMU\\角速度/加速度};
+  \node[algo,right=10mm of $(lidar)!0.5!(imu)$] (lio) {Faster/FAST-LIO\\激光惯性里程计};
+  \node[algo,right=of lio] (map) {动态二维概率图\\高低障碍分层};
+  \node[algo,right=of map] (plan) {Dijkstra\\全局路径};
+  \node[ctrl,below=9mm of plan] (track) {前视跟踪\\局部障碍保护};
+  \node[ctrl,left=of track] (token) {Token 适配器\\50 Hz Pose Token};
+  \node[ctrl,left=of token] (sonic) {NX SONIC\\全身稳定控制};
+  \node[sensor,left=of sonic] (g1) {G1 LowCmd\\关节执行};
+  \node[safe,below=9mm of token] (gate) {时效/置信度/急停\\操作员心跳/断流看门狗};
+
+  \draw[arrow] (lidar) -- (lio);
+  \draw[arrow] (imu) -- (lio);
+  \draw[arrow] (lio) -- (map);
+  \draw[arrow] (map) -- (plan);
+  \draw[arrow] (plan) -- (track);
+  \draw[arrow] (track) -- (token);
+  \draw[arrow] (token) -- (sonic);
+  \draw[arrow] (sonic) -- (g1);
+  \draw[arrow,dashed,orange] (gate) -- (track);
+  \draw[arrow,dashed,orange] (gate) -- (token);
+  \draw[arrow,dashed,orange] (gate) -- (sonic);
+\end{tikzpicture}
+\caption{当前 G1 建图导航主链及安全门控关系}
+\end{figure}
+
+\subsection{计算与责任边界}
+
+\begin{tabularx}{\textwidth}{p{2.5cm} X X}
+\toprule
+运行位置 & 主要任务 & 设计原因 \\
+\midrule
+NX 机器人侧 & LiDAR/IMU 驱动、Faster/FAST-LIO、SONIC 推理、Unitree 低层通信、本地 Token 断流看门狗 & 保证高频感知和失联后的本地安全，不依赖 SSH 或工作站存活 \\
+导航工作站 & 二维地图处理、地图操作台、全局规划、路径跟踪、局部保护、Token 适配 & 便于可视化、算法迭代和与世界模型协同 \\
+世界模型侧 & 发布地图坐标目标，订阅路径、位姿和到达状态 & 不直接发布速度、Token 或关节指令，保持控制责任单一 \\
+\bottomrule
+\end{tabularx}
+
+建图模式与自主导航模式互斥：建图时允许人工 Token 慢速扫描，但不启动 Dijkstra 和自动控制；导航时不常驻发布大规模三维累计点云，以优先保证局部障碍数据的新鲜度。
+
+% -------------------- Algorithms --------------------
+\section{现有算法原理}
+
+\subsection{Faster/FAST-LIO 连续定位与三维建图}
+
+算法用 IMU 对姿态、速度和位置进行高频预测，并利用每个激光点的采样时间进行运动畸变补偿。当前扫描被变换到世界坐标系后，与局部体素地图中的平面匹配，典型点到平面残差为
+
+\begin{equation}
+r_i=\boldsymbol n_i^{\mathsf T}\left(\boldsymbol R\boldsymbol p_i+\boldsymbol t-\boldsymbol q_i\right),
+\end{equation}
+
+其中 $\boldsymbol p_i$ 是当前扫描点，$\boldsymbol q_i$ 和 $\boldsymbol n_i$ 分别是局部地图平面上的参考点和法向量。迭代误差状态卡尔曼滤波利用残差修正位姿、速度、IMU 零偏和重力方向，配准后的点再增量加入局部地图。
+
+当前 NX 部署使用 Faster-LIO/iVox 变体；仓库工作站开发链保留 FAST-LIO/ikd-Tree。二者核心思想相同：IMU 负责高频运动预测，LiDAR scan-to-map 负责抑制漂移。当前主链不含闭环检测，因此地图坐标属于当前启动会话，长距离和长时间运行仍可能累计漂移。
+
+从后续传感增强角度看，多传感器融合 SLAM 的系统分类、耦合层次和典型退化条件可参考综述~[19,20]。若不增加相机，也可研究利用 LiDAR 反射率图像补充几何约束的紧耦合方案~[21]，但需要先确认 Mid-360 反射强度的一致性、标定方式和成像模型是否满足要求。
+
+\subsection{动态二维概率建图}
+
+注册点云首先按距离和高度筛选：近场约 $0.35\,$m 内视为潜在本体点；低障碍层主要覆盖 $0.10\sim0.80\,$m；高位层覆盖约 $0.35\sim1.60\,$m。对低障碍端点执行栅格射线反演，内部状态采用 log-odds：
+
+\begin{equation}
+L_t(c)=\operatorname{clip}\!\left(L_{t-1}(c)+
+\begin{cases}
++l_{\mathrm{hit}}, & c\text{ 为射线端点},\\
+-l_{\mathrm{miss}}, & c\text{ 被射线穿过}.
+\end{cases}\right)
+\end{equation}
+
+多帧命中超过阈值后才发布为占据，重复穿过则逐步变为自由。该表示沿用概率占据栅格的经典思想~[18]，并针对 G1 的三维注册点云和步态噪声扩展证据更新策略。高位障碍使用独立证据层并在未重复观测时衰减，从而兼顾桌沿/横梁安全和临时障碍消退。发布前对已观测空间执行邻域支持与连通域过滤，同时保护未知边界附近的首次真实回波。
+
+\subsection{全局路径规划}
+
+二维地图先按 G1 机体尺寸和安全余量进行圆形膨胀，真机当前使用约 $0.50\,$m。Dijkstra 在八邻域中搜索，未知区默认不可通行，对角步禁止穿越墙角。单步代价除距离外加入航向变化：
+
+\begin{equation}
+J_{k}=d_k\left(1+k_{\theta}\left|\Delta\theta_k\right|\right),
+\end{equation}
+
+使路径在长度接近时优先选择转弯更少的方案。栅格路径依次经过点距简化、直线捷径和 centripetal Catmull--Rom 平滑；最终在膨胀地图上重新碰撞复核，平滑不安全时回退到安全折线路径。
+
+\subsection{路径跟踪、局部保护与到达判定}
+
+控制器在路径前方选取约 $0.70\,$m 的前视点，计算
+
+\begin{equation}
+\theta_d=\operatorname{atan2}(y_L-y,\,x_L-x),\qquad
+e_{\theta}=\operatorname{wrap}(\theta_d-\theta).
+\end{equation}
+
+与连续底盘控制不同，真机模式一次只执行一种主要动作：航向误差大时原地转向，稳定后连续前进，接近障碍时使用慢速基元，最终进入位置保持和可选的目标朝向对齐。
+
+局部障碍由 body cloud 投影为 720 束扫描。前方距离必须获得多个相邻点支持，并对最近三帧取中值。当前典型策略为：进入警戒区切换慢速，平移方向约 $0.45\,$m 内硬停，原地转向仅在约 $0.20\,$m 极近障碍下停止。
+
+% -------------------- Improvements --------------------
+\section{相对开源基础的修改与优化}
+
+\subsection{成果分类原则}
+
+为保证汇报口径严谨，本报告将成果分为三类：
+
+\begin{itemize}
+  \item \tagbox{muted}{适配} 硬件话题、外参、参数、启动和坐标变换，不宣称改变上游数学原理；
+  \item \tagbox{blue}{增强} 基于通用算法增加面向 G1 的状态机、过滤、复核和安全机制；
+  \item \tagbox{green}{系统创新} 将原本独立的感知、规划和神经全身控制组合为可验证的新人形导航闭环。
+\end{itemize}
+
+\subsection{优化矩阵}
+
+\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{2.15cm} >{\raggedright\arraybackslash}p{3.15cm} >{\raggedright\arraybackslash}p{5.65cm} >{\raggedright\arraybackslash}p{2.25cm}}
+\toprule
+模块 & 开源/通用基础 & 本项目修改与价值 & 定性 \\
+\midrule
+\endfirsthead
+\toprule
+模块 & 开源/通用基础 & 本项目修改与价值 & 定性 \\
+\midrule
+\endhead
+Faster/FAST-LIO & 紧耦合 LiDAR--IMU、scan-to-map、iVox/ikd-Tree & Mid-360/G1 外参与倒装适配；近场、体素和点云输出调优；NX/工作站话题隔离；导航模式降低三维预览带宽 & \tagbox{muted}{适配} \\
+坐标桥接 & ROS 2 TF 与 PointCloud2/LaserScan & 位姿航向和 body cloud 分别校正，避免重复旋转；强制几何变换而非仅改 frame 名；统一二维机体位姿 & \tagbox{blue}{增强} \\
+动态二维图 & log-odds 逆传感模型 & 世界点云直接建图；近场本体剔除；低/高双层证据；高位障碍衰减；未知边界保护的空间离群清理 & \tagbox{green}{系统创新} \\
+全局规划 & Dijkstra 栅格最短路 & G1 安全膨胀；未知区禁行；对角防切角；转向代价；精确目标恢复；捷径和平滑后的碰撞回退 & \tagbox{blue}{增强} \\
+动态重规划 & 周期性重新搜索 & 地图更新先复核剩余路径；路径仍安全则保持；机器人近场地图抖动交由实时扫描保护 & \tagbox{blue}{增强} \\
+路径跟踪 & 前视点/比例控制 & 路径点推进与航向前视分离；连续速度意图改为离散转向/前进/站立动作；不要求横移 & \tagbox{green}{系统创新} \\
+Token 转向 & SONIC Pose Token 播放 & 进入/退出滞回、最短动作时间、方向与档位锁定、stand settle、多周期角度锁存、IMU 复核 & \tagbox{green}{系统创新} \\
+局部保护 & 扫描最小距离/势场 & 障碍点簇支持、三帧中值、平移与转向分阈值、慢速基元显式切换、禁止自动倒车与转向反转 & \tagbox{blue}{增强} \\
+到达判定 & 单帧距离阈值 & 位置触发区、驻留时间、最终 yaw、超时和到达终态锁存，抑制步态摆动造成的反复触发 & \tagbox{blue}{增强} \\
+地图/定位路由 & 单地图单定位源 & 实时图、人工基准对齐、固定地图重定位三模式互斥；地图 ID、会话 ID 和目标撤销机制 & \tagbox{blue}{增强} \\
+网络与控制安全 & 普通 ZMQ Token 输入 & XPUB 订阅握手、反向反馈门、Token 真实时效、0.20 s 断流、0.30 s 平滑回 stand、恢复插值 & \tagbox{green}{系统创新} \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\subsection{核心优化一：动态二维地图组合算法}
+
+单独看射线反演、log-odds 或连通域过滤都属于成熟方法；项目价值在于针对 G1 点云构成建立了组合策略：
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=4mm,
+  s/.style={draw=line,rounded corners=2pt,fill=light,minimum height=9mm,align=center,font=\small\sffamily,minimum width=29mm},
+  a/.style={-{Latex[length=2mm]},draw=muted,thick}
+]
+\node[s] (a) {FAST-LIO\\世界点云};
+\node[s,right=of a] (b) {高度/距离筛选\\本体剔除};
+\node[s,right=of b] (c) {低障碍射线\\log-odds};
+\node[s,below=of c] (d) {高位障碍\\独立衰减层};
+\node[s,left=of d] (e) {时序多帧确认\\动态消退};
+\node[s,left=of e] (f) {边界保护去噪\\地图裁剪发布};
+\draw[a] (a)--(b); \draw[a] (b)--(c); \draw[a] (c)--(d);
+\draw[a] (d)--(e); \draw[a] (e)--(f);
+\end{tikzpicture}
+\end{center}
+
+它同时解决四个冲突目标：过滤步态/地面噪声、保留新墙首次回波、识别上身碰撞风险、允许临时障碍消退。
+
+\subsection{核心优化二：Token 动作空间中的闭环导航}
+
+项目没有把 $\code{/cmd\_vel}$ 直接等价为关节运动，而是把它视为高层意图。动作选择器将其映射为经实机筛选的 Pose Token，并用定位反馈闭环决定基元何时结束。这一结构把“几何路径正确”与“人形动作可执行”连接起来：
+
+\begin{equation}
+\text{地图路径}\rightarrow\text{航向/距离误差}\rightarrow
+\text{有限动作集合}\rightarrow\text{SONIC 全身策略}\rightarrow
+\text{实测位姿反馈}.
+\end{equation}
+
+相比连续速度控制，关键约束是一次动作中不频繁跨越 stand、不在转向响应延迟期反向、不输出落入动作选择死区的微小速度。
+
+\subsection{核心优化三：分层失效安全}
+
+\begin{tabularx}{\textwidth}{p{2.4cm} X X}
+\toprule
+安全层 & 触发条件 & 系统行为 \\
+\midrule
+感知层 & LaserScan 缺失或超时、近障点簇进入硬停区 & 导航意图归零，拒绝依赖旧扫描继续运动 \\
+定位层 & 里程计超时、TF 失败、置信度低、位姿突跳 & 停止并撤销/拒绝目标，不自动恢复旧任务 \\
+操作员层 & 解锁心跳超时、软件急停、模式切换 & 立即停止，恢复后要求人工重新下发目标 \\
+Token 网络层 & 订阅未建立、反馈不新鲜、Token 超过 0.20 s 未更新 & NX 本地平滑回到已验证 stand，继续维持策略使能 \\
+进程所有权 & 重复规划器、重复 Token 入口、模式冲突 & 启动脚本拒绝运行，避免多源控制 \\
+\bottomrule
+\end{tabularx}
+
+% -------------------- Status --------------------
+\section{阶段成果、验证状态与问题诊断}
+
+\subsection{已形成的交付能力}
+
+\begin{itemize}
+  \item 建图与导航两条互斥运行链及其启动、停止和安全接管流程；
+  \item 动态二维占据地图、地图冻结/编辑/保存和人工基准对齐；
+  \item G1SensorBridge、Dijkstra、nav2point、Token 适配器和 NX SONIC 完整接口；
+  \item 仿真与真机共享的运动基元、到达判定、转向状态机和局部保护逻辑；
+  \item 面向世界模型的 ROS 2 目标、路径、位姿、取消和到达接口；
+  \item 精简导航运行时、部署脚本、交接包和回归测试。
+\end{itemize}
+
+\subsection{已有观测数据}
+
+根据 2026 年 8 月 13 日项目交接记录，原地真机会话启动门观测到：
+
+\begin{center}
+\begin{tabular}{ccc}
+\toprule
+数据项 & 观测频率 & 说明 \\
+\midrule
+FAST-LIO odometry & $10.00\,$Hz & 连续位姿输入 \\
+注册/body cloud & $10.00\,$Hz & 建图与局部障碍输入 \\
+动态二维地图 & $0.92\,$Hz & 占据地图更新 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+精简运行时文档记录的代码回归为 163/163 通过，覆盖动态占据图、地图编辑、规划起点恢复、局部安全、到达状态、转向状态机和 Token 基元。上述数据证明链路连续性和代码一致性，\textbf{不等价于新场地完整精度、长期漂移或无人值守安全验收}。
+
+\subsection{当前主要短板}
+
+\begin{enumerate}
+  \item \textbf{坐标不跨启动保持：}当前定位以会话里程计为主，旧地图需要回到保存基准人工对齐；
+  \item \textbf{缺少回环优化：}长走廊和大范围建图可能积累全局漂移；
+  \item \textbf{二维地形表达有限：}无法完整描述台阶、坡度、落差、低矮障碍和头部净空；
+  \item \textbf{局部策略以规则为主：}能够减速/停车，但不会预测行人轨迹或在动作空间中主动绕行；
+  \item \textbf{G1 足迹不是静态圆：}摆臂、侧倾和转身过程的扫掠体积没有进入全局碰撞模型；
+  \item \textbf{缺少统一数据集指标：}尚未建立多场景、重复路线、遮挡和传感退化条件下的标准 benchmark。
+\end{enumerate}
+
+% -------------------- Roadmap --------------------
+\section{未来创新与优化路线规划}
+
+\subsection{总体路线}
+
+未来路线遵循“\textbf{定位可信是前提、动作可执行是约束、语义智能是增量}”的顺序。建议分四阶段推进：
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[x=1.25cm,y=0.72cm,font=\sffamily\small]
+  \draw[->,thick,muted] (0,0) -- (10.2,0);
+  \foreach \x/\lab in {0/当前,2/3个月,4/6个月,6/9个月,8/12个月,10/长期} {
+    \draw[muted] (\x,0.12)--(\x,-0.12);
+    \node[below=3pt,text=muted] at (\x,0) {\lab};
+  }
+  \fill[red!75,rounded corners=2pt] (0,3.6) rectangle (2.2,4.25);
+  \node[text=white] at (1.1,3.93) {P0 定位可信化};
+  \fill[blue!78,rounded corners=2pt] (1.4,2.5) rectangle (5.0,3.15);
+  \node[text=white] at (3.2,2.83) {P1 2.5D地图与Token局部规划};
+  \fill[green!80,rounded corners=2pt] (4.0,1.4) rectangle (8.0,2.05);
+  \node[text=white] at (6.0,1.73) {P2 动态预测、回环与语义导航};
+  \fill[navy!88,rounded corners=2pt] (7.0,0.3) rectangle (10.0,0.95);
+  \node[text=white] at (8.5,0.63) {P3 学习型风险评估与自主任务};
+\end{tikzpicture}
+\caption{建议技术路线与时间关系；具体周期以传感器、场地和真机窗口为准}
+\end{figure}
+
+\subsection{P0：固定地图可靠重定位（0--3个月）}
+
+\textbf{目标：}机器人从地图内非基准位置启动，也能可靠输出固定 $map$ 坐标位姿，并在定位质量不足时拒绝运动。
+
+\begin{enumerate}
+  \item 建立固定三维地图与二维导航图的统一版本 ID 和坐标契约；
+  \item 使用 RGB/RGB-D 地点识别或 Scan Context~[9] 生成粗候选；
+  \item 使用 LiDAR/深度点云的 FPFH+RANSAC~[10] 完成粗配准，以 Generalized-ICP~[11] 或 NDT 进行精配准；
+  \item 形成 $map\rightarrow odom\rightarrow base\_footprint$ 结构：FAST-LIO 提供连续里程计，全局定位只修正慢变量；
+  \item 对重定位跳变采用一致性检验、平滑切换和静止确认，严禁运动中直接跳变控制位姿；
+  \item 加入“绑架恢复”、重复走廊错误匹配、玻璃与动态人员场景测试。
+\end{enumerate}
+
+\textbf{建议验收指标：}标准场景初始定位成功率 $\geq95\%$；位置误差 $\leq0.15\,$m；航向误差 $\leq5^\circ$；错误接受率 $<0.1\%$；失效后 $0.5\,$s 内关闭导航许可。指标应在独立测试路线和未参与调参的数据上统计。
+
+\subsection{P1：2.5D可通行性地图与Token空间局部规划（2--6个月）}
+
+\subsubsection{2.5D/3D可通行性表达}
+
+在二维占据之外增加地面高程、坡度、粗糙度、台阶高度、落差边缘和上身净空；高程及其不确定性传播可参考机器人中心概率地形建图方法~[12]：
+
+\begin{equation}
+C_{\mathrm{trav}}=w_h C_{\mathrm{height}}+w_s C_{\mathrm{slope}}
++w_r C_{\mathrm{rough}}+w_c C_{\mathrm{clearance}}.
+\end{equation}
+
+规划器不再只回答“格子是否占据”，而是回答“G1 以何种姿态和动作能否安全通过”。对落差和楼梯边缘采用不可逆高风险标记，不能仅依赖短时动态衰减。
+
+\subsubsection{Token Motion Lattice}
+
+将已验证动作基元转化为带时间、位移、转角和扫掠体积的运动边：
+
+\begin{equation}
+\mathcal A=\{\text{stand},\text{forward}_{s/n},\text{turn}_{l/r,s/n},\ldots\}.
+\end{equation}
+
+局部规划直接搜索动作序列，而不是先生成连续速度再量化为 Token。其基本思想与采用可行运动基元编码受约束运动的 State Lattice~[13] 一致，但节点状态和边代价需要针对人形 Token、步态稳定性和全身扫掠体积重新定义。每条边使用仿真/真机统计得到的终点分布、执行时间、足部稳定性和最小净空作为代价。这将是项目下一阶段最具研究价值的方向之一。
+
+\textbf{建议验收指标：}动作序列预测终点误差降低 30\%；无效 stand/forward 抖动为零；窄通道通过率提升 20\%；所有候选动作的扫掠体积均通过碰撞复核。
+
+\subsection{P2：动态环境、回环与语义导航（4--12个月）}
+
+\subsubsection{动态障碍跟踪与短时预测}
+
+在当前即时点簇保护基础上加入聚类、数据关联和速度估计，维护障碍状态 $[x,y,v_x,v_y]$，预测未来 $1\sim3\,$s 占据区域。带时间参数的局部轨迹优化可作为动态避障对照基线~[15]；本项目则需进一步约束到离散 Token 动作集合。局部规划同时考虑静态地图代价和时变碰撞概率：
+
+\begin{equation}
+J=J_{\mathrm{path}}+\lambda_1J_{\mathrm{turn}}+\lambda_2J_{\mathrm{risk}}(t)
++\lambda_3J_{\mathrm{token\ switch}}.
+\end{equation}
+
+对人群环境应优先等待和让行，而不是仅以最短路径绕行。
+
+对于视觉参与的动态场景，可将语义类别、光流运动证据和几何一致性联合使用；轻量检测与几何前端异步协同的 ELY-SLAM 可作为近期方法参考~[23]。该类方法仍需区分“语义上可移动”与“当前实际运动”，不能仅按类别删除全部特征。
+
+\subsubsection{回环检测与位姿图优化}
+
+在 FAST-LIO 前端之外建立关键帧、回环候选和位姿图，使用 LiDAR 描述子/视觉地点识别发现回环，再用 ICP/GICP 验证。后端可采用 iSAM2 一类增量平滑方法维护因子图~[14]。优化结果用于三维地图和二维地图重投影，避免直接扭曲正在执行的局部控制坐标。
+
+工程基线可参考 RTAB-Map 在视觉/LiDAR 回环检测、图优化和长期运行记忆管理方面的系统设计~[22]。其价值主要在于提供完整可运行的对照链，而不是直接替换当前 FAST-LIO 前端。
+
+\subsubsection{语义地图与世界模型接口}
+
+把“实验台、门、通道、充电区、禁入区”等语义对象绑定到稳定地图版本。世界模型发布语义任务，上层解析为约束目标；导航仍负责几何可达性和安全，不允许语言模型绕过本地急停、定位置信度或地图碰撞检查。
+
+若后续引入相机进行稠密重建，可先区分强调离线几何精度的摄影测量/SfM/MVS 与强调在线轨迹连续性的视觉 SLAM~[24]。NeRF 和 3D Gaussian Splatting 地图的系统综述~[25] 以及 LiDAR--IMU--Camera 连续时间 3DGS SLAM 实例~[26] 可用于评估新地图表示，但照片级渲染质量不能替代轨迹、表面精度和导航可通行性指标。面向更长期的世界模型，可参考将持久三维空间记忆、技能规划和 ROS 2 执行反馈连接起来的具身智能框架~[27]。
+
+\subsection{P3：学习型风险评估与自主任务（9--18个月）}
+
+在规则安全层始终保留的前提下，利用仿真和真机日志学习：
+
+\begin{itemize}
+  \item 地形、步态相位和动作基元条件下的跌倒/打滑风险；
+  \item 点云退化、重复结构和运动模糊条件下的定位可信度；
+  \item 动作基元的真实终点分布和能耗模型；
+  \item 面向任务的速度、稳定性、能耗和社交距离多目标权衡。
+\end{itemize}
+
+学习模块只输出风险或代价，不直接解除规则安全门。仿真训练应随机化传感噪声、摩擦、质量惯量、动作延迟和外部扰动；域随机化与动力学随机化是缩小 sim-to-real 差距的常用起点~[16,17]，但不能替代真机标定。建议采用 shadow mode 记录模型建议，与现有控制结果对比，达到离线门槛后再逐级开放决策权限。
+
+\subsection{路线优先级与交付物}
+
+\begin{tabularx}{\textwidth}{p{1.2cm} p{3.0cm} X p{3.0cm}}
+\toprule
+优先级 & 方向 & 关键交付物 & 决策门 \\
+\midrule
+P0 & 固定地图重定位 & 可复现数据集、全局定位节点、map--odom 平滑、安全门、三地真机报告 & 未达错误接受率指标不得接管运动 \\
+P0 & 统一评测体系 & 录包规范、轨迹真值、定位/地图/导航 KPI 仪表板 & 参数修改必须回归同一基准 \\
+P1 & 2.5D 可通行性 & 高程/坡度/落差/净空图及碰撞验证器 & 先只读告警，再参与规划 \\
+P1 & Token lattice & 动作数据库、扫掠体积、状态转移模型和在线局部搜索 & 仿真稳定后保护架短距验证 \\
+P2 & 动态预测与回环 & 动态轨迹层、关键帧图、闭环地图版本机制 & 不得造成控制坐标瞬时跳变 \\
+P3 & 学习风险模型 & shadow-mode 风险评分与失效解释报告 & 规则安全层始终拥有否决权 \\
+\bottomrule
+\end{tabularx}
+
+% -------------------- Evaluation --------------------
+\section{建议评测体系与汇报指标}
+
+\subsection{定位指标}
+
+\begin{itemize}
+  \item 绝对轨迹误差 ATE、相对位姿误差 RPE、航向漂移率；
+  \item 初始化成功率、初始化耗时、错误接受率、失效检测延迟；
+  \item 静止漂移、长走廊、重复结构、人员遮挡、玻璃和点云退化测试；
+  \item 重启后坐标一致性和地图版本切换一致性。
+\end{itemize}
+
+\subsection{地图指标}
+
+\begin{itemize}
+  \item 与人工标注/高精地图对比的 occupied precision、recall 和 IoU；
+  \item 单帧噪声误入图率、动态障碍消退时间、新墙首次保留率；
+  \item 墙体厚度、重复走线后的重影宽度、地图内存和更新时延；
+  \item 台阶、桌沿、低矮障碍和上身净空的分类召回率。
+\end{itemize}
+
+\subsection{导航与安全指标}
+
+\begin{itemize}
+  \item 到达成功率、最终位置/航向误差、路径长度比和任务耗时；
+  \item 每米非必要转向次数、Token 切换次数、stand 抖动次数；
+  \item 最小障碍距离、动态障碍场景碰撞率、紧急停车距离；
+  \item odom/scan/网络断开后的停车延迟和安全站立成功率；
+  \item 100 次重复短程任务、8 小时稳定运行和断网注入测试。
+\end{itemize}
+
+建议每次汇报同时给出“平均值、P95、最差值和失败案例”，不只展示一次成功视频。
+
+% -------------------- Risks --------------------
+\section{实施风险与治理建议}
+
+\begin{tabularx}{\textwidth}{p{2.5cm} X X}
+\toprule
+风险 & 影响 & 建议措施 \\
+\midrule
+错误全局重定位 & 在固定地图中产生错误路径，风险高于定位失败 & 宁可拒绝也不错误接受；双模态验证、静止确认、协方差和时效联合门控 \\
+多进程控制冲突 & 两个控制源同时发布动作 & PID/端口/节点单例锁；启动前枚举发布者；世界模型不得发布 cmd/Token \\
+地图动态衰减误删 & 静态高位障碍被消退 & 静态层与动态层分离；落差、墙体等关键结构禁止快速衰减 \\
+Token 分布外动作 & 策略出现不稳定姿态 & 只使用验证基元；动作过渡插值；扩大前先做仿真和保护架验证 \\
+无线链路抖动 & 扫描或 Token 延迟导致旧数据控制 & 数据时效门、NX 本地 watchdog、有线/专网优先、记录端到端延迟 \\
+指标不可复现 & 调参效果无法比较 & 固定录包、版本 ID、参数快照、自动报告和独立测试路线 \\
+\bottomrule
+\end{tabularx}
+
+% -------------------- Conclusion --------------------
+\section{结论}
+
+项目已完成从激光惯性里程计、动态二维建图、全局规划、局部障碍保护到 SONIC 全身 Token 控制的端到端集成。相对上游开源算法，核心贡献不是替换 FAST-LIO 或 Dijkstra，而是把通用算法改造成适配人形机器人离散动作、步态噪声和失联风险的可运行系统。
+
+当前阶段应定义为“\textbf{当前会话内建图导航主链形成，固定地图自主定位仍在研}”。下一阶段建议优先完成固定地图可靠重定位和统一评测基线，随后推进 2.5D 可通行性与 Token Motion Lattice，最后扩展到动态障碍预测、回环、语义地图和学习型风险评估。该顺序能够避免在定位基础尚不稳定时过早叠加复杂智能模块。
+
+% -------------------- Appendix --------------------
+\appendix
+\section{当前主链关键接口}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{4.3cm} >{\raggedright\arraybackslash}p{3.4cm} >{\raggedright\arraybackslash}p{6.2cm}}
+\toprule
+接口 & 消息/协议 & 作用 \\
+\midrule
+\nolinkurl{/localization/odom_nav} & ROS 2 Odometry & NX FAST-LIO 当前会话位姿 \\
+\nolinkurl{/cloud_registered_body_nav} & ROS 2 PointCloud2 & 紧凑机体系点云，用于局部扫描 \\
+\nolinkurl{/g1_lidar_slam/map_nav} & ROS 2 OccupancyGrid & 动态二维权威地图 \\
+\nolinkurl{/lidar_odometry/pose_fixed} & ROS 2 Odometry & 坐标修正后的统一导航位姿 \\
+\nolinkurl{/scan} & ROS 2 LaserScan & 由三维点云投影的实时近场障碍 \\
+\nolinkurl{/g1pilot/goal} & ROS 2 PoseStamped & $map$ 坐标目标 \\
+\nolinkurl{/g1pilot/path} & ROS 2 Path & Dijkstra 与后处理生成的全局路径 \\
+\nolinkurl{/g1pilot/cmd_vel} & ROS 2 Twist & 导航动作意图，不是关节命令 \\
+TCP 5556/5557 & ZMQ & 工作站 Token 输入 / NX 反馈 \\
+\bottomrule
+\end{longtable}
+
+\section{典型运行参数快照}
+
+\begin{tabularx}{\textwidth}{p{3.5cm} p{2.5cm} X}
+\toprule
+参数 & 当前典型值 & 说明 \\
+\midrule
+动态地图分辨率 & $0.05\,$m/cell & G1 在线概率地图内部栅格 \\
+低障碍高度 & $0.10\sim0.80\,$m & 地面以上主要碰撞层 \\
+高位障碍高度 & $0.35\sim1.60\,$m & 桌沿、横梁等上身风险 \\
+本体剔除距离 & $0.35\,$m & 降低腿部和安装结构入图 \\
+全局障碍膨胀 & $0.50\,$m & G1 半宽与安全余量 \\
+路径前视距离 & $0.70\,$m & 航向目标选取 \\
+真机前进上限 & $0.25\,$m/s & 当前 Token 主链设置 \\
+真机转向上限 & $0.25\,$rad/s & 当前 Token 主链设置 \\
+平移硬停距离 & 约 $0.45\,$m & 前方支持点簇距离 \\
+转向极近硬停 & 约 $0.20\,$m & 原地转向独立阈值 \\
+Token 断流门槛 & $0.20\,$s & NX 本地时效判断 \\
+安全站立插值 & $0.30\,$s & 当前 Token 平滑回 stand \\
+\bottomrule
+\end{tabularx}
+
+\section{主要技术依据与项目资料}
+
+\begin{enumerate}[label={[\arabic*]}]
+  \item W. Xu and F. Zhang, ``FAST-LIO: A Fast, Robust LiDAR-Inertial Odometry Package by Tightly-Coupled Iterated Kalman Filter,'' \emph{IEEE Robotics and Automation Letters}, 2021.
+  \item W. Xu et al., ``FAST-LIO2: Fast Direct LiDAR-Inertial Odometry,'' \emph{IEEE Transactions on Robotics}, 2022.
+  \item Q.-Y. Zhou, J. Park and V. Koltun, ``Open3D: A Modern Library for 3D Data Processing,'' 2018.
+  \item E. W. Dijkstra, ``A Note on Two Problems in Connexion with Graphs,'' \emph{Numerische Mathematik}, 1959.
+  \item 项目资料：\emph{G1 FAST-LIO 定位、动态二维建图与 SONIC 导航}，2026 年 8 月。
+  \item 项目资料：\emph{G1 建图与导航项目正式交接说明}，2026 年 8 月。
+  \item 项目资料：\emph{G1 导航上位机三模式建图定位——交接与技术说明}，2026 年 8 月。
+  \item 项目资料：\emph{网络断连安全}，2026 年 8 月。
+  \item G. Kim and A. Kim, ``Scan Context: Egocentric Spatial Descriptor for Place Recognition Within 3D Point Cloud Map,'' \emph{Proc. IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)}, pp. 4802--4809, 2018, doi: 10.1109/IROS.2018.8593953.
+  \item R. B. Rusu, N. Blodow, and M. Beetz, ``Fast Point Feature Histograms (FPFH) for 3D Registration,'' \emph{Proc. IEEE International Conference on Robotics and Automation (ICRA)}, pp. 3212--3217, 2009, doi: 10.1109/ROBOT.2009.5152473.
+  \item A. Segal, D. Haehnel, and S. Thrun, ``Generalized-ICP,'' \emph{Proc. Robotics: Science and Systems (RSS)}, 2009.
+  \item P. Fankhauser, M. Bloesch, and M. Hutter, ``Probabilistic Terrain Mapping for Mobile Robots with Uncertain Localization,'' \emph{IEEE Robotics and Automation Letters}, vol. 3, no. 4, pp. 3019--3026, 2018, doi: 10.1109/LRA.2018.2849506.
+  \item M. Pivtoraiko and A. Kelly, ``Efficient Constrained Path Planning via Search in State Lattices,'' \emph{Proc. 8th International Symposium on Artificial Intelligence, Robotics and Automation in Space (iSAIRAS)}, 2005.
+  \item M. Kaess, H. Johannsson, R. Roberts, V. Ila, J. J. Leonard, and F. Dellaert, ``iSAM2: Incremental Smoothing and Mapping Using the Bayes Tree,'' \emph{The International Journal of Robotics Research}, vol. 31, no. 2, pp. 216--235, 2012, doi: 10.1177/0278364911430419.
+  \item C. R\"osmann, F. Hoffmann, and T. Bertram, ``Integrated Online Trajectory Planning and Optimization in Distinctive Topologies,'' \emph{Robotics and Autonomous Systems}, vol. 88, pp. 142--153, 2017, doi: 10.1016/j.robot.2016.11.007.
+  \item J. Tobin, R. Fong, A. Ray, J. Schneider, W. Zaremba, and P. Abbeel, ``Domain Randomization for Transferring Deep Neural Networks from Simulation to the Real World,'' \emph{Proc. IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)}, pp. 23--30, 2017, doi: 10.1109/IROS.2017.8202133.
+  \item X. B. Peng, M. Andrychowicz, W. Zaremba, and P. Abbeel, ``Sim-to-Real Transfer of Robotic Control with Dynamics Randomization,'' \emph{Proc. IEEE International Conference on Robotics and Automation (ICRA)}, pp. 3803--3810, 2018, doi: 10.1109/ICRA.2018.8460528.
+  \item A. Elfes, ``Using Occupancy Grids for Mobile Robot Perception and Navigation,'' \emph{Computer}, vol. 22, no. 6, pp. 46--57, 1989, doi: 10.1109/2.30720.
+  \item X. Xu, L. Zhang, J. Yang, C. Cao, W. Wang, Y. Ran, Z. Tan, and M. Luo, ``A Review of Multi-Sensor Fusion SLAM Systems Based on 3D LiDAR,'' \emph{Remote Sensing}, vol. 14, no. 12, Art. no. 2835, 2022, doi: 10.3390/rs14122835.
+  \item Z. Fan, L. Zhang, X. Wang, Y. Shen, and F. Deng, ``LiDAR, IMU, and Camera Fusion for Simultaneous Localization and Mapping: A Systematic Review,'' \emph{Artificial Intelligence Review}, vol. 58, Art. no. 174, 2025, doi: 10.1007/s10462-025-11187-w.
+  \item Y. Zhang, Y. Tian, W. Wang, G. Yang, Z. Li, F. Jing, and M. Tan, ``RI-LIO: Reflectivity Image Assisted Tightly-Coupled LiDAR-Inertial Odometry,'' \emph{IEEE Robotics and Automation Letters}, vol. 8, no. 3, pp. 1802--1809, 2023, doi: 10.1109/LRA.2023.3243528.
+  \item M. Labb\'e and F. Michaud, ``RTAB-Map as an Open-Source LiDAR and Visual Simultaneous Localization and Mapping Library for Large-Scale and Long-Term Online Operation,'' \emph{Journal of Field Robotics}, vol. 36, no. 2, pp. 416--446, 2019, doi: 10.1002/rob.21831.
+  \item Y. Zhao, M. I. Solihin, D. Yang, A. A. Wijaya, and F. Yakub, ``ELY-SLAM: An Efficient SLAM Algorithm with Lightweight YOLO-Based Collaborative Perception,'' \emph{Array}, vol. 30, Art. no. 100844, 2026, doi: 10.1016/j.array.2026.100844.
+  \item A. J. Moghadam, A. Kiani, R. Naeimaei, S. Malihi, and I. Brilakis, ``Video-Based 3D Reconstruction: A Review of Photogrammetry and Visual SLAM Approaches,'' \emph{Journal of Imaging}, vol. 12, no. 3, Art. no. 128, 2026, doi: 10.3390/jimaging12030128.
+  \item F. Tosi, Y. Zhang, Z. Gong, E. Sandstr\"om, S. Mattoccia, M. R. Oswald, and M. Poggi, ``How NeRFs and 3-D Gaussian Splatting Are Reshaping SLAM: A Survey,'' \emph{IEEE Transactions on Robotics}, vol. 42, 2026, doi: 10.1109/TRO.2026.3666139.
+  \item X. Lang, J. Lv, K. Tang, L. Li, J. Huang, L. Liu, Y. Liu, and X. Zuo, ``Gaussian-LIC2: LiDAR-Inertial-Camera Gaussian Splatting SLAM,'' arXiv:2507.04004, 2025.
+  \item X. Zhou, L. Liu, T. Xiao, W. Feng, F. Fu, X. Meng, X. Wang, J. Han, B. Yu, Y. Du, W. Sui, and Z. Su, ``HoloAgent-0: A Unified Embodied Agent Framework with 3D Spatial Memory,'' arXiv:2606.23565, 2026.
+\end{enumerate}
+
+\vfill
+\begin{center}
+\color{muted}\sffamily\small
+— 文档结束 —
+\end{center}
+
+\end{document}

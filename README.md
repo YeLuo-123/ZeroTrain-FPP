@@ -1,430 +1,326 @@
-# 物理约束相移条纹断裂修复：可复现实验
+# ZeroTrain-FPP
 
-## 官方 UDPR/UCNNet 数据
+面向单帧条纹投影三维测量的双目相位恢复研究。项目以 UDPR/UCNNet 为
+baseline，探索**序数条纹级推断、有界相位残差和置信度物理约束**，目标是
+在不使用目标场景相位标签的条件下，提高绝对相位恢复的可靠性与效率。
 
-`Dataset/` 是论文 *Untrained deep learning-based phase retrieval for
-fringe projection profilometry* 的官方数据，而不是四步相移序列。新增代码将
-该协议与下文原有的四步修复实验严格分开：
+> 当前状态：官方数据读取、标定解析、Baseline 官方输出评估和两阶段模型
+> 骨架已经完成；完整物理损失、训练流程及消融实验仍在开发。README 中的
+> “创新点”是待实验验证的研究假设，不代表已经取得性能提升。
 
-- `fringe_repair/udpr_io.py`：兼容 classic MAT、MATLAB v7.3/HDF5，配对
-  左右视图、两阶段输入、真值、mask 和官方输出；同时解析相机—相机及
-  相机—投影仪标定；
-- `scripts/evaluate_udpr_baseline.py`：在有效 mask 内复算官方输出的 MAE、
-  RMSE、阈值错误率及 stage-1 条纹级准确率；
-- `fringe_repair/udpr_models.py`：共享权重的双目两阶段模型。第一阶段使用
-  序数分布和 soft-argmax 预测条纹级及不确定度，第二阶段预测限制在
-  `[-pi, pi]` 内的绝对相位残差及置信度。
+## 项目概览
 
-复现全部三个官方子集：
+条纹投影轮廓术通过投影仪向物体表面投射正弦条纹，从相机采集图像中恢复
+绝对相位，并进一步重建三维形貌。传统高精度方案通常需要多幅相移条纹和
+Gray Code，不适用于高速运动场景；单帧方案采集速度快，但面临包裹相位误差
+以及 \(2\pi\) 周期模糊。
 
-```bash
-PYTHONPATH=. .venv/bin/python scripts/evaluate_udpr_baseline.py \
-  --root Dataset --output results/udpr_official_baseline.json
-```
+本项目研究的问题是：
 
-加载一个阶段的数据和标定：
+> 如何利用双相机之间的相位与几何关系，从左右单帧条纹中恢复可靠的绝对
+> 相位，同时降低逐场景优化的计算成本？
 
-```python
-from fringe_repair.udpr_io import OfficialUDPRDataset
+推荐课题名称：
 
-data = OfficialUDPRDataset("Dataset", section="3.2.1", stage=1)
-sample = data[0]                  # 所有图像张量均为 [480, 640]
-calibration = data.calibration() # 常规列向量/OpenCV K、R、t
-lower, upper = data.fringe_order_bounds("left")
-```
+- 中文：基于序数条纹级推断与置信度物理约束的单帧双目相位恢复
+- 英文：Confidence-Guided Stereo Phase Retrieval with Ordinal
+  Fringe-Order Inference
 
-## 项目汇报说明
+## 方法
 
-### 1. 项目题目
+### Baseline：UDPR/UCNNet
 
-推荐中文题目：
+Baseline 来自论文 *Untrained deep learning-based phase retrieval for
+fringe projection profilometry*。它针对每个待测场景优化共享权重的双目
+网络，不依赖当前场景的相位标签。
 
-> 基于序数条纹级推断与置信度物理约束的单帧双目相位恢复
-
-英文题目：
-
-> Confidence-Guided Stereo Phase Retrieval with Ordinal Fringe-Order
-> Inference
-
-### 2. 研究背景与问题定义
-
-条纹投影轮廓术通过投影仪向物体表面投射正弦条纹，相机采集受物体
-高度调制后的条纹，再从条纹中恢复绝对相位并重建三维形貌。传统高精度
-方法通常需要采集多幅相移条纹和 Gray Code 图案，测量精度高，但不适合
-运动物体和高速场景。
-
-单帧条纹投影只需采集一幅图像，具有较高的测量速度，但同时面临两个
-核心问题：
-
-1. 单幅条纹计算得到的包裹相位精度有限；
-2. 绝对相位存在 \(2\pi\) 周期模糊，需要准确判断每个像素的条纹级。
-
-本项目研究如何利用双相机的相位和几何关系，在不使用目标场景相位真值
-的情况下，从左右两幅单帧条纹中恢复准确的绝对相位。
-
-### 3. Baseline 方法
-
-本项目以论文 *Untrained deep learning-based phase retrieval for fringe
-projection profilometry* 提出的 UDPR/UCNNet 为 baseline。该方法不依赖
-大规模带标签数据预训练，而是针对每个待测场景，利用双目系统的物理
-一致性优化网络。
-
-第一阶段输入左右单幅条纹 \(I_L,I_R\) 以及 WFT 计算的粗包裹相位
-\(\phi_L^c,\phi_R^c\)，预测左右条纹级 \(K_L,K_R\)，并计算粗绝对相位：
+第一阶段根据左右单幅条纹 \(I_L,I_R\) 和 WFT 粗包裹相位
+\(\phi_L^c,\phi_R^c\) 预测条纹级 \(K_L,K_R\)：
 
 \[
 \Phi_i^c=\phi_i^c+2\pi K_i.
 \]
 
-第二阶段输入左右条纹和粗绝对相位，进一步得到精细绝对相位
-\(\hat\Phi_L,\hat\Phi_R\)。
+第二阶段根据条纹和粗绝对相位 \(\Phi_i^c\) 恢复精细绝对相位。优化过程
+采用三种场景无关约束：
 
-Baseline 使用三类场景无关约束：
+- 相位一致性：同一三维点在左右视图中对应相同投影相位；
+- 结构一致性：左右对应图像区域具有相似的局部结构；
+- 三维一致性：双目系统与相机—投影仪系统给出的几何对应一致。
 
-- **相位一致性**：同一三维点在左右相机中应具有相同的投影相位；
-- **结构一致性**：左右对应图像区域应具有相似的局部结构；
-- **三维一致性**：相机—投影仪与双目系统计算的几何对应应一致。
+### Baseline 局限
 
-因此，Baseline 可以不使用当前场景的相位真值，通过物理一致性完成
-单场景优化。
+1. 条纹级本质上是离散、有序变量，但 Baseline 将其作为连续量回归，无法
+   显式描述候选条纹级的歧义；
+2. 暗区、饱和区、遮挡区和弱纹理区可靠程度不同，固定损失权重容易受到错误
+   对应点干扰；
+3. 每个场景从随机参数开始优化，计算成本较高；
+4. 第二阶段直接处理大范围绝对相位，未充分利用“细化粗相位”的任务先验。
 
-### 4. Baseline 的主要不足
-
-#### 4.1 条纹级被作为普通连续量回归
-
-条纹级 \(K\) 本质上是离散且有序的变量。连续回归没有显式描述各候选
-条纹级的概率，也无法判断当前结果是否存在歧义。在遮挡、弱纹理和低
-质量条纹区域，条纹级错误会直接造成约 \(2\pi\) 的相位跳变。
-
-#### 4.2 不同质量像素使用近似固定的损失权重
-
-暗区、饱和区、遮挡区和弱纹理区域的可靠程度明显不同。尤其在遮挡区域
-不存在有效双目对应，在弱纹理区域使用 SSIM 寻找对应也容易产生歧义。
-固定权重会使错误对应点干扰网络优化。
-
-#### 4.3 每个场景都需要重新优化
-
-Baseline 针对每个场景从随机参数开始优化。该方法不依赖训练集，但计算
-成本较高，难以直接应用于实时三维测量。
-
-#### 4.4 第二阶段直接预测大范围绝对相位
-
-第二阶段的实际任务是修正粗绝对相位，而不是重新估计完整绝对相位。
-直接回归大范围相位会增加网络的优化难度。
-
-### 5. 项目总体方案
-
-本项目保留 Baseline 的双目物理约束思想，重新设计条纹级表示、相位
-细化方式和像素可靠性建模：
+### 总体方案
 
 ```text
 左右单幅条纹
-      ↓
+      │
+      ▼
 WFT 粗包裹相位
-      ↓
-第一阶段：序数条纹级概率预测
-      ↓
-粗绝对相位
-      ↓
-第二阶段：有界相位残差预测
-      ↓
-置信度加权双目物理优化
-      ↓
+      │
+      ▼
+Stage I：序数条纹级概率推断 ──► 条纹级不确定度
+      │
+      ▼
+粗绝对相位 Φᶜ = φᶜ + 2πK
+      │
+      ▼
+Stage II：[-π, π] 有界相位残差 ──► 相位置信度
+      │
+      ▼
+置信度加权的双目物理一致性优化
+      │
+      ▼
 精细绝对相位与三维重建
 ```
 
-### 6. 计划验证的创新点
+## 拟验证的创新点
 
-> 以下内容是已经完成模型骨架、但仍需要训练和消融实验验证的方法设计，
-> 不能作为已经得到实验支持的结论。
+### 1. 序数概率条纹级推断
 
-#### 创新点一：基于序数概率的条纹级推断
-
-将所有候选条纹级表示为概率分布：
+对候选条纹级建立概率分布：
 
 \[
 p(k\mid I,\phi^c),\qquad k\in[K_{\min},K_{\max}],
 \]
 
-并通过 soft-argmax 得到可微条纹级：
+并通过 soft-argmax 得到可微预测：
 
 \[
 \hat K=\sum_k k\,p(k).
 \]
 
-该方法利用了条纹级的离散、有序属性，并避免无约束连续回归产生不合理
-结果。进一步使用归一化概率熵表示条纹级不确定度：
+概率分布的归一化熵用于描述条纹级不确定度：
 
 \[
-U_K=-\frac{1}{\log N}\sum_k p(k)\log p(k).
+U_K=-\frac{1}{\log N}\sum_kp(k)\log p(k).
 \]
 
-概率集中时不确定度较低；多个候选条纹级概率接近时，不确定度较高。
-因此，模型能够同时输出条纹级及其可信程度。
+相较于无约束连续回归，该表示能够利用条纹级的离散和有序属性，并同时给出
+预测值与可信程度。
 
-#### 创新点二：有界绝对相位残差细化
+### 2. 有界绝对相位残差
 
-第二阶段不直接预测完整绝对相位，而是预测粗相位的残差：
+第二阶段只预测粗相位的周期内修正量：
 
 \[
 \hat\Phi=\Phi^c+\Delta\Phi,\qquad
-\Delta\Phi=\pi\tanh(z).
+\Delta\Phi=\pi\tanh(z)\in[-\pi,\pi].
 \]
 
-由此保证：
+该设计缩小了网络输出空间，并通过物理边界减少异常的跨周期相位修正。
+
+### 3. 置信度引导的物理约束
+
+计划融合有效区域、曝光质量、局部纹理、条纹级熵和相位方差：
 
 \[
-\Delta\Phi\in[-\pi,\pi].
+C=C_{\mathrm{mask}}C_{\mathrm{intensity}}C_{\mathrm{texture}}
+C_{\mathrm{order}}C_{\mathrm{phase}},
 \]
 
-其物理含义是第二阶段只负责在当前条纹周期内修正粗相位，不应任意跨越
-多个周期。该设计能够缩小输出空间、降低优化难度，并减少异常的跨周期
-相位跳变。
-
-#### 创新点三：置信度引导的物理一致性优化
-
-计划使用以下因素构造像素级置信度：
-
-\[
-C=C_{\mathrm{mask}}
-C_{\mathrm{intensity}}
-C_{\mathrm{texture}}
-C_{\mathrm{order}}
-C_{\mathrm{phase}}.
-\]
-
-其中：
-
-- \(C_{\mathrm{mask}}\)：官方数据提供的有效区域；
-- \(C_{\mathrm{intensity}}\)：降低暗区和饱和区的权重；
-- \(C_{\mathrm{texture}}\)：降低弱纹理区域的匹配权重；
-- \(C_{\mathrm{order}}\)：根据条纹级概率熵计算；
-- \(C_{\mathrm{phase}}\)：根据第二阶段预测的相位方差计算。
-
-相位、结构和三维一致性损失统一采用置信度加权：
+并使用置信度加权的鲁棒损失：
 
 \[
 \mathcal L_{\mathrm{phy}}=
 \frac{\sum_x C(x)\rho(r(x))}
-{\sum_x C(x)+\epsilon},
+{\sum_x C(x)+\epsilon}.
 \]
 
-其中 \(\rho\) 可使用 Huber 或 Charbonnier 鲁棒函数。该设计用于降低
-遮挡、弱纹理和异常曝光像素对优化过程的干扰，并直接针对 Baseline
-论文中提到的弱纹理区域失效问题。
+目标是降低遮挡、异常曝光和弱纹理像素对相位、结构及三维一致性优化的干扰。
 
-#### 创新点四：共享初始化与轻量测试时自适应
+### 4. 轻量测试时自适应
 
-为减少 Baseline 逐场景随机初始化带来的计算开销，后续计划：
+后续将探索共享初始化和低秩 Adapter：测试时冻结主干，只更新少量场景相关
+参数，并根据物理残差提前停止。引入共享初始化后，方法应准确描述为
+“无目标域标签的测试时自适应”，而不是“完全无训练”。
 
-1. 学习跨场景共享的网络初始化；
-2. 测试时冻结主要特征提取网络；
-3. 只优化低秩 Adapter、归一化参数或相位残差头；
-4. 根据物理一致性残差进行自适应提前停止。
+## 官方数据
 
-加入共享初始化后，该方法不应再称为“完全无训练”，更准确的表述是：
+本项目使用 Baseline 论文公开的约 7.5 GB 官方数据。数据不包含在 Git
+仓库中，请将其放置在项目根目录的 `Dataset/` 下。
 
-> 无目标域标签的测试时自适应相位恢复。
-
-### 7. 官方数据集
-
-当前使用 Baseline 论文公开的约 7.5 GB 官方数据：
-
-| 数据部分 | 场景数 | 主要用途 |
+| 数据部分 | 场景数 | 论文实验设置 |
 |---|---:|---|
-| section 3.2.1 | 100 | 充足且相似场景实验 |
-| section 3.2.2 | 15 | 有限场景实验 |
-| section 3.2.3 | 75 | 树皮、叶片等跨类别实验 |
+| section 3.2.1 | 100 | 充足、相似场景 |
+| section 3.2.2 | 15 | 有限场景 |
+| section 3.2.3 | 75 | 树皮、叶片等跨类别场景 |
 
-公开数据共包含 190 个实验场景，每个场景包含：
+每个公开场景包含左右单幅条纹、WFT 粗包裹相位、条纹级真值、粗绝对相位、
+绝对相位真值、有效 mask、官方两阶段输出以及系统标定参数。图像分辨率为
+\(640\times480\)。
 
-- 左右相机单幅条纹；
-- 左右 WFT 粗包裹相位；
-- 左右条纹级真值；
-- 左右粗绝对相位；
-- 左右绝对相位真值；
-- 左右有效区域 mask；
-- Baseline 两阶段输出；
-- 双相机及相机—投影仪标定参数。
+公开文件共包含 190 个论文实验场景，并不是论文提到的全部 675 个采集场景。
+因此，数据划分和实验结论必须以实际公开文件为准。
 
-数据图像分辨率为 \(640\times480\)。公开文件主要对应论文实验子集，
-不包含论文所述全部 675 个采集场景，因此后续不能声称使用了完整的
-675 场景数据集。
+预期目录结构：
 
-### 8. 当前已完成工作
+```text
+Dataset/
+├── section 3.2.1/
+│   ├── calibration parameter/
+│   ├── fringe order range/
+│   ├── data-stage1/
+│   └── data-stage2/
+├── section 3.2.2/
+└── section 3.2.3/
+```
 
-#### 8.1 官方数据加载
+## 已完成工作
 
-已经实现 classic MAT、MATLAB v7.3 和普通 HDF5 的统一读取，处理了
-MATLAB/Python 数组方向差异，并完成左右视图、两阶段输入、真值、mask
-和官方输出的严格配对。
+- 兼容 classic MAT、MATLAB v7.3 与普通 HDF5；
+- 将 MATLAB 保存的 `640×480` 数组恢复为 Python 的 `[H,W]=[480,640]`；
+- 严格配对左右视图、两阶段输入、真值、mask 和官方输出；
+- 解析相机—相机及相机—投影仪标定，并导出常规列向量/OpenCV 形式
+  \(K,R,t\)；
+- 在有效 mask 内复算 MAE、RMSE、Bad-pixel rate 和条纹级准确率；
+- 实现左右视图权重共享的两阶段网络；
+- 实现 56 个候选条纹级、soft-argmax、熵不确定度、像素级候选范围和
+  \([-\pi,\pi]\) 相位残差。
 
-#### 8.2 标定参数解析
+核心文件：
 
-已经能够解析左相机—右相机、右相机—左相机、左相机—投影仪和右相机—
-投影仪四组标定，并将 MATLAB 行向量形式转换为常见 OpenCV 列向量形式。
+| 文件 | 作用 |
+|---|---|
+| `fringe_repair/udpr_io.py` | 官方数据与标定解析 |
+| `fringe_repair/udpr_metrics.py` | Baseline 指标统计 |
+| `fringe_repair/udpr_models.py` | 双目两阶段模型 |
+| `scripts/evaluate_udpr_baseline.py` | 官方输出复现入口 |
+| `tests/test_udpr.py` | 数据、标定和模型测试 |
 
-#### 8.3 Baseline 指标复现
+## Baseline 复现结果
 
-使用左右有效 mask 复算官方 Stage-2 输出，结果如下：
+以下结果由官方保存的 Stage-II 输出计算，而不是当前创新模型的训练结果：
 
-| 数据部分 | 样本数 | 双视图 MAE |
-|---|---:|---:|
-| section 3.2.1 | 100 | 0.1098 rad |
-| section 3.2.2 | 15 | 0.0944 rad |
-| section 3.2.3 | 75 | 0.0813 rad |
+| 数据部分 | 样本数 | 双视图 MAE | 双视图 RMSE |
+|---|---:|---:|---:|
+| section 3.2.1 | 100 | 0.1098 rad | 0.3861 rad |
+| section 3.2.2 | 15 | 0.0944 rad | 0.3427 rad |
+| section 3.2.3 | 75 | 0.0813 rad | 0.2939 rad |
 
-复算结果与论文报告的约 \(0.10/0.08/0.07\) rad 处于相同量级，说明文件
-配对、图像方向和 mask 语义基本正确。数值差异可能来自论文采用逐场景
-平均、特定视图或未公开后处理，当前不能声称已经逐位复现论文表格。
+结果与论文报告的约 \(0.10/0.08/0.07\) rad 处于相同量级。差异可能来自
+逐场景与逐像素平均方式、视图选择或未公开后处理，因此当前结论是“评估
+链路正确且结果同量级”，不是“逐位复现论文数值”。
 
-#### 8.4 两阶段模型骨架
+完整统计见 `results/udpr_official_baseline.json`。
 
-目前已经实现：
+## 快速开始
 
-- 左右视图共享网络参数；
-- 56 个候选条纹级的概率输出；
-- soft-argmax 条纹级计算；
-- 条纹级熵不确定度；
-- 像素级条纹级上下界约束；
-- 限制在 \([-\pi,\pi]\) 内的相位残差；
-- 相位方差和置信度输出。
+### 1. 安装
 
-当前单元测试、六个数据分区检查和模型前向测试均已通过。
+建议使用 Python 3.11 和 PyTorch 2.4 或更高版本：
 
-### 9. 后续实验设计
+```bash
+git clone https://github.com/YeLuo-123/ZeroTrain-FPP.git
+cd ZeroTrain-FPP
 
-#### 9.1 对比方法
+python3 -m venv .venv
+.venv/bin/pip install --upgrade pip
+.venv/bin/pip install torch torchvision
+.venv/bin/pip install -r requirements.txt
+```
 
-- WFT/TPR；
-- 原始 UCNNet；
-- 普通连续条纹级回归网络；
-- 序数条纹级网络；
-- 完整置信度引导方法；
-- 共享初始化和测试时 Adapter 方法。
+### 2. 复现官方输出指标
 
-#### 9.2 评价指标
+```bash
+PYTHONPATH=. .venv/bin/python scripts/evaluate_udpr_baseline.py \
+  --root Dataset \
+  --section all \
+  --stage all \
+  --output results/udpr_official_baseline.json
+```
 
-- 相位 MAE、RMSE；
-- Bad-0.1、Bad-0.2、Bad-0.5 错误像素比例；
-- 条纹级准确率和 \(2\pi\) 跳变率；
-- 概率熵与实际预测错误的相关性；
-- 普通、边缘、弱纹理、暗区和饱和区分区域误差；
-- 单场景迭代数、运行时间、参数量和显存占用；
-- 标定三角测量后的三维 RMSE 和 Chamfer Distance。
+只评估一个子集和阶段：
 
-#### 9.3 消融实验
+```bash
+PYTHONPATH=. .venv/bin/python scripts/evaluate_udpr_baseline.py \
+  --root Dataset --section 3.2.3 --stage 2
+```
+
+### 3. 加载数据和标定
+
+```python
+from fringe_repair.udpr_io import OfficialUDPRDataset
+
+dataset = OfficialUDPRDataset(
+    "Dataset",
+    section="3.2.1",
+    stage=1,
+    include_output=True,
+)
+
+sample = dataset[0]
+calibration = dataset.calibration("leftcamera_rightcamera")
+lower, upper = dataset.fringe_order_bounds("left")
+
+print(sample["fringe_left"].shape)       # torch.Size([480, 640])
+print(calibration.camera_matrix_1.shape) # (3, 3)
+```
+
+### 4. 运行测试
+
+```bash
+PYTHONPATH=. .venv/bin/pytest -q
+```
+
+若本地没有官方 `Dataset/`，依赖真实数据的测试会自动跳过。
+
+## 后续实验
+
+计划对比 WFT/TPR、原始 UCNNet、连续条纹级回归、序数条纹级模型、完整
+置信度方法和 Adapter 测试时自适应。主要评价指标包括：
+
+- 相位 MAE、RMSE、Bad-0.1、Bad-0.2 和 Bad-0.5；
+- 条纹级准确率、\(2\pi\) 跳变率及不确定度校准；
+- 边缘、弱纹理、暗区和饱和区的分区域误差；
+- 单场景优化迭代数、耗时、参数量和显存；
+- 标定三角测量后的三维 RMSE 与 Chamfer Distance。
+
+关键消融：
 
 | 消融设置 | 验证目标 |
 |---|---|
-| 连续回归 → 序数概率推断 | 验证条纹级建模 |
-| 去掉条纹级熵 | 验证不确定度作用 |
-| 去掉图像质量置信度 | 验证异常曝光处理 |
-| 直接相位回归 → 有界残差 | 验证相位细化方式 |
-| 固定损失权重 → 置信度加权 | 验证物理损失设计 |
-| 随机初始化 → 共享初始化 | 验证收敛速度 |
-| 全参数优化 → Adapter | 验证计算效率 |
+| 连续回归 → 序数概率推断 | 条纹级表示 |
+| 去掉条纹级熵 | 不确定度作用 |
+| 直接绝对相位 → 有界残差 | 相位细化方式 |
+| 固定权重 → 置信度加权 | 鲁棒物理损失 |
+| 随机初始化 → 共享初始化 | 收敛速度 |
+| 全参数优化 → Adapter | 计算效率 |
 
-### 10. 当前项目边界
+## 当前边界
 
-1. 当前完成的是官方保存输出的指标复算，还没有完整重新训练原论文
-   UCNNet；
-2. 创新两阶段网络已经完成前向结构，置信度物理损失、训练入口和
-   Adapter 测试时优化仍需实现；
-3. 当前结果证明了数据和评估链路正确，但尚不能证明创新方法优于
-   Baseline；
-4. 最终方法有效性必须通过三个数据子集、分区域实验和消融实验验证；
-5. 官方公开数据只有 190 个实验场景，监督训练和数据划分需要避免
-   数据泄漏。
+- 尚未完整重新训练原论文 UCNNet，当前 Baseline 数值来自官方保存输出；
+- 创新网络已完成前向结构，置信度物理损失、训练入口和 Adapter 尚未完成；
+- 当前结果证明数据及评价链路正确，不能据此宣称创新方法优于 Baseline；
+- 官方公开场景数量有限，后续实验必须避免跨场景数据泄漏；
+- 三维精度需要使用真实标定进行三角测量，不能用相位线性缩放代理毫米误差。
 
-### 11. 一分钟汇报摘要
+## 辅助四步条纹修复模块
 
-> 本项目研究双目单帧条纹投影中的绝对相位恢复。Baseline 利用左右相机
-> 之间的相位、结构和三维一致性，对每个场景单独优化一个无训练网络，
-> 因而具有较好的跨场景泛化能力。但它将离散条纹级作为连续量回归，
-> 无法描述条纹级歧义；同时对不同质量像素采用近似固定的权重，在弱纹理、
-> 遮挡、暗区和饱和区容易受到错误对应影响，而且逐场景随机初始化的计算
-> 时间较长。
->
-> 本项目采用两阶段改进方案。第一阶段将条纹级恢复改为序数概率推断，
-> 通过 soft-argmax 得到条纹级，并利用概率熵估计不确定度；第二阶段不
-> 直接预测完整绝对相位，而是在粗相位基础上预测限制在正负 \(\pi\) 内
-> 的残差。后续将利用有效 mask、图像强度、局部纹理、条纹级熵和相位
-> 方差构建像素置信度，对双目物理损失进行自适应加权，并通过共享初始化
-> 和轻量 Adapter 减少测试时优化成本。
->
-> 当前已经完成官方 190 个场景的数据读取、四组标定解析、Baseline 输出
-> 指标复现以及两阶段模型骨架。三个子集的双视图绝对相位 MAE 分别约为
-> 0.110、0.094 和 0.081 rad，与论文结果处于相同量级。下一阶段将实现
-> 完整物理一致性损失、训练流程和消融实验。
+仓库仍保留早期四步相移条纹破损实验代码，包括合成退化、传统修复、
+U-Net/Pix2Pix 和物理双头网络。该模块使用统一 NPZ 格式：
 
-本项目实现四步相移条纹损坏、经典修复、学习式修复和物理约束相位恢复。所有脚本使用固定随机种子；输出结果标明数据来源。当前仓库中的 `results/*_smoke.json` 是用于验证链路的**合成小样本 smoke test**，不是论文最终结果。
-
-## 数据集边界
-
-| 数据集 | 官方内容 | 对本任务的用途 |
-|---|---|---|
-| DL-SLP / GDD | 10,000+ 真实单幅变形条纹—高度对；Zenodo 包 13.8 GB | 单幅条纹/高度外部验证；它不是天然四步 PSP 数据 |
-| SFNet SynthFringe | 两幅不同频率条纹输入、绝对相位标签；官方 Dropbox | fringe-to-phase 与跨频率泛化；不是四步等相移序列 |
-| Middlebury 2003 | 9 个 RGB 立体视图、2 个结构光测得的视差图，450×375（quarter） | 几何 benchmark；结构光只用于制作 GT，不含投影条纹 |
-
-因此，三者不能未经说明就直接充当 `{I1…I4}`。真正四步数据用 `convert_fourstep.py`；单幅/双幅数据应按各自协议训练，并作为跨数据集实验。若需要严格的四步真实实验，还应补充自采标定数据或公开四步 FPP 数据。
-
-## 一键复现
-
-```bash
-cd /home/fq/paper
-python3 -m venv .venv
-.venv/bin/pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
-.venv/bin/pip install -r requirements.txt
-
-PYTHONPATH=. .venv/bin/python scripts/download_data.py middlebury --extract
-PYTHONPATH=. .venv/bin/python scripts/inspect_data.py data/raw/middlebury
-PYTHONPATH=. .venv/bin/python scripts/make_synthetic.py --samples 24
-PYTHONPATH=. .venv/bin/python scripts/visualize.py
-PYTHONPATH=. .venv/bin/python train.py
-PYTHONPATH=. .venv/bin/python test.py --method physics --checkpoint runs/physics/last.pt
+```text
+fringe [4,H,W], phase [H,W], depth [H,W], valid [H,W]
 ```
 
-大型数据按需下载：
+它用于辅助验证相位损失和代码组件，不属于当前 UDPR 官方数据的主实验协议，
+也不能把单帧/双目数据重新解释成四步相移序列。相关入口为 `train.py`、
+`test.py` 和 `scripts/make_synthetic.py`。
 
-```bash
-# 约 13.8 GB，解压还需额外空间
-PYTHONPATH=. .venv/bin/python scripts/download_data.py dlslp --extract
-# Dropbox 可能要求浏览器确认；脚本会检查下载物是否真的是 zip
-PYTHONPATH=. .venv/bin/python scripts/download_data.py sfnet --extract
-```
+## 引用与致谢
 
-四步相移目录转换：
+本项目基于以下工作开展：
 
-```bash
-PYTHONPATH=. .venv/bin/python scripts/convert_fourstep.py \
-  --root /path/to/data --names I1.png I2.png I3.png I4.png
-```
+> H. Yu, X. Chen, R. Huang, et al., “Untrained deep learning-based phase
+> retrieval for fringe projection profilometry,” *Optics and Lasers in
+> Engineering*, vol. 164, 107483, 2023.
 
-NPZ 统一契约为 `fringe[4,H,W]`、`phase[H,W]`、`depth[H,W]`、`valid[H,W]`。真实深度评估必须填写相机—投影仪标定模型；代码中的归一化 phase-to-depth 仅是 smoke test 代理，不能作为毫米误差发表。
-
-## 方法和消融
-
-- `psp`：四步 Hariharan/等步长 PSP；
-- `telea`, `ns`：逐帧 OpenCV 修复后 PSP；
-- `unet`：4→4 条纹恢复；
-- `gan`：Pix2Pix PatchGAN + 配对/物理损失；
-- `phase`：4→sin/cos→wrapped phase；
-- `physics`：条纹与相位双头网络。
-
-```bash
-PYTHONPATH=. .venv/bin/python train.py --model unet
-PYTHONPATH=. .venv/bin/python train.py --model gan
-PYTHONPATH=. .venv/bin/python train.py --ablate physics
-PYTHONPATH=. .venv/bin/python train.py --ablate phase
-PYTHONPATH=. .venv/bin/python train.py --ablate geometry
-```
-
-损坏比例在 `configs/default.yaml` 改为 0.05/0.10/0.20/0.30。完整论文实验至少运行 3 个种子并报告均值±标准差。
-
-## 环境与硬件
-
-本次验证环境是 Python 3.13.13、PyTorch 2.13.0+cpu、无 CUDA。论文训练建议 Python 3.11、PyTorch 2.4+、单卡 12 GB 以上显存；256²、batch 4 可按显存调整。`requirements.txt` 给出可安装下界，完整锁定应在目标 GPU 上导出 `pip freeze`。
-
-详细实验论述和 LaTeX 表格见 [paper/experiment.tex](paper/experiment.tex)。
+如本项目对你的研究有帮助，请同时引用原始 UDPR/UCNNet 论文及其官方数据。

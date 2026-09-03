@@ -1,0 +1,46 @@
+{
+  "protocol": {
+    "low_frequency": 2,
+    "high_frequency": 64,
+    "ratio": 32
+  },
+  "sample_count": 18,
+  "split": "fixed validation split",
+  "metrics": {
+    "traditional_unresolved": {
+      "k2_accuracy": 0.8177177372685185,
+      "k64_accuracy": 0.8039359085648149,
+      "phi64_mae_rad": 37.01649455148092,
+      "phi64_rmse_rad": 85.22299137974505,
+      "catastrophic_order_rate": 0.18465711805555554
+    },
+    "pchip_completion": {
+      "k2_accuracy": 0.9472837094907407,
+      "k64_accuracy": 0.9305649594907407,
+      "phi64_mae_rad": 11.044458378179806,
+      "phi64_rmse_rad": 34.5475873274292,
+      "catastrophic_order_rate": 0.05557870370370369
+    },
+    "network_k2": {
+      "k2_accuracy": 0.9920999710648147,
+      "k64_accuracy": 0.9728067129629631,
+      "phi64_mae_rad": 2.225365574413436,
+      "phi64_rmse_rad": 17.37058539005408,
+      "catastrophic_order_rate": 0.01177589699074074
+    },
+    "network_full": {
+      "k2_accuracy": 0.9920999710648147,
+      "k64_accuracy": 0.6059989872685185,
+      "phi64_mae_rad": 5.9946456975036915,
+      "phi64_rmse_rad": 23.49260974925285,
+      "catastrophic_order_rate": 0.06001012731481481
+    },
+    "oracle_k2": {
+      "k2_accuracy": 1.0,
+      "k64_accuracy": 0.9798017939814814,
+      "phi64_mae_rad": 0.7937607423350473,
+      "phi64_rmse_rad": 11.456073415902198,
+      "catastrophic_order_rate": 0.004649160879629629
+    }
+  }
+}

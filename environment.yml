@@ -1,0 +1,21 @@
+name: fpp
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      - torch>=2.2
+      - torchvision>=0.17
+      - numpy>=1.26
+      - scipy>=1.11
+      - h5py>=3.10
+      - Pillow>=10
+      - matplotlib>=3.8
+      - opencv-python-headless>=4.9
+      - scikit-image>=0.22
+      - PyYAML>=6
+      - tqdm>=4.66
+      - tensorboard>=2.16
+      - pytest>=7
