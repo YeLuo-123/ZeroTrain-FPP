@@ -1,0 +1,108 @@
+{
+  "format_version": 2,
+  "configuration": {
+    "output_dir": "results\\teacher_boundary_dataset_smoke",
+    "num_samples": 6,
+    "height": 96,
+    "width": 128,
+    "low_frequency": 2,
+    "high_frequency": 64,
+    "modulation_threshold": 0.025,
+    "seed": 20260813,
+    "noise": true
+  },
+  "label_policy": {
+    "phase": "12-step result supervised only where valid_mask=1",
+    "boundary": "complete boundary derived from geometric K2",
+    "shadow": "projector visibility < 0.20",
+    "valid": "not shadow, not low modulation, not saturated"
+  },
+  "samples": [
+    {
+      "id": "scene_00000",
+      "level": "clean",
+      "valid_pixels": 12288,
+      "shadow_pixels": 0,
+      "saturated_pixels": 0,
+      "complete_boundary_pixels": 192,
+      "observed_boundary_pixels": 192,
+      "hidden_boundary_pixels": 0,
+      "mean_reflectance": 0.806648528517265,
+      "mean_visibility": 1.0,
+      "mean_valid_intensity": 0.4054447412490845
+    },
+    {
+      "id": "scene_00001",
+      "level": "ellipse",
+      "valid_pixels": 11821,
+      "shadow_pixels": 467,
+      "saturated_pixels": 0,
+      "complete_boundary_pixels": 192,
+      "observed_boundary_pixels": 140,
+      "hidden_boundary_pixels": 52,
+      "mean_reflectance": 0.8194933919486624,
+      "mean_visibility": 0.9549567629967194,
+      "mean_valid_intensity": 0.40215981006622314
+    },
+    {
+      "id": "scene_00002",
+      "level": "irregular",
+      "valid_pixels": 11305,
+      "shadow_pixels": 983,
+      "saturated_pixels": 0,
+      "complete_boundary_pixels": 192,
+      "observed_boundary_pixels": 127,
+      "hidden_boundary_pixels": 65,
+      "mean_reflectance": 0.8446456839155606,
+      "mean_visibility": 0.8980158425674958,
+      "mean_valid_intensity": 0.4064334034919739
+    },
+    {
+      "id": "scene_00003",
+      "level": "geometry",
+      "valid_pixels": 12018,
+      "shadow_pixels": 270,
+      "saturated_pixels": 0,
+      "complete_boundary_pixels": 192,
+      "observed_boundary_pixels": 158,
+      "hidden_boundary_pixels": 34,
+      "mean_reflectance": 0.8012671473045337,
+      "mean_visibility": 0.9591186523437499,
+      "mean_valid_intensity": 0.4031638503074646
+    },
+    {
+      "id": "scene_00004",
+      "level": "dark_valid",
+      "valid_pixels": 11828,
+      "shadow_pixels": 0,
+      "saturated_pixels": 0,
+      "complete_boundary_pixels": 192,
+      "observed_boundary_pixels": 192,
+      "hidden_boundary_pixels": 0,
+      "mean_reflectance": 0.31199348192376813,
+      "mean_visibility": 1.0,
+      "mean_valid_intensity": 0.17050962150096893
+    },
+    {
+      "id": "scene_00005",
+      "level": "bright_bad",
+      "valid_pixels": 10534,
+      "shadow_pixels": 1754,
+      "saturated_pixels": 0,
+      "complete_boundary_pixels": 192,
+      "observed_boundary_pixels": 142,
+      "hidden_boundary_pixels": 50,
+      "mean_reflectance": 0.827520685850616,
+      "mean_visibility": 0.8658915308610112,
+      "mean_valid_intensity": 0.4150574803352356
+    }
+  ],
+  "level_counts": {
+    "clean": 1,
+    "ellipse": 1,
+    "irregular": 1,
+    "geometry": 1,
+    "dark_valid": 1,
+    "bright_bad": 1
+  }
+}

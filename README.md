@@ -331,13 +331,15 @@ PYTHONPATH=. .venv/bin/pytest -q
 
 ```text
 ZeroTrain-FPP/
+├── baseline/            # F2 传统方法、教师数据与可复现实验结果
+├── improvement/         # 分界线多任务网络、训练推理和对比结果
 ├── fringe_repair/       # 数据、模型、物理公式与相位展开算法
 ├── scripts/             # 数据评估、方法对比与报告生成入口
 ├── tests/               # 单元和集成测试
 ├── configs/             # 四步辅助实验配置
 ├── docs/                # 中文技术报告及算法说明
 ├── paper/               # LaTeX 实验章节
-├── code/                # 独立仿真和早期 U-Net 实验
+├── code/                # 兼容保留的独立仿真和早期 U-Net 实验
 ├── train.py             # 四步条纹辅助模型训练
 └── test.py              # 四步条纹辅助模型评估
 ```
