@@ -4,9 +4,10 @@
 baseline，探索**序数条纹级推断、有界相位残差和置信度物理约束**，目标是
 在不使用目标场景相位标签的条件下，提高绝对相位恢复的可靠性与效率。
 
-> 当前状态：官方数据读取、标定解析、Baseline 官方输出评估和两阶段模型
-> 骨架已经完成；完整物理损失、训练流程及消融实验仍在开发。README 中的
-> “创新点”是待实验验证的研究假设，不代表已经取得性能提升。
+> 当前状态：官方数据读取、标定解析、Baseline 官方输出评估、两阶段模型
+> 骨架、时间相位展开对比，以及基频 2 分界线补全仿真已经完成。置信度物理
+> 损失、完整训练和 Adapter 测试时自适应仍在开发。“拟验证的创新点”是研究
+> 假设，不代表已经取得最终性能提升。
 
 ## 项目概览
 
@@ -184,6 +185,10 @@ Dataset/
 - 实现左右视图权重共享的两阶段网络；
 - 实现 56 个候选条纹级、soft-argmax、熵不确定度、像素级候选范围和
   \([-\pi,\pi]\) 相位残差。
+- 实现多频、多波长和数论时间相位展开，并与 UDPR 官方输出进行统一指标比较；
+- 实现基频 2 分界线检测、伪边界剔除、保形补全及高频展开的二维仿真；
+- 完成内部相移叠加源程序的 Python 数值等价实现，并验证 120 次总投影协议；
+- 为核心物理公式、数据解析、网络前向和分界线算法建立自动化测试。
 
 核心文件：
 
@@ -193,6 +198,10 @@ Dataset/
 | `fringe_repair/udpr_metrics.py` | Baseline 指标统计 |
 | `fringe_repair/udpr_models.py` | 双目两阶段模型 |
 | `scripts/evaluate_udpr_baseline.py` | 官方输出复现入口 |
+| `fringe_repair/temporal_unwrap.py` | 多频、多波长与数论相位展开 |
+| `scripts/compare_udpr_tpu.py` | UDPR 与时间相位展开对比 |
+| `fringe_repair/f2_boundary.py` | 基频 2 分界线检测、补全与展开 |
+| `scripts/compare_f2_boundary_source.py` | 30×3 场景仿真和统计入口 |
 | `tests/test_udpr.py` | 数据、标定和模型测试 |
 
 ## Baseline 复现结果
@@ -210,6 +219,50 @@ Dataset/
 链路正确且结果同量级”，不是“逐位复现论文数值”。
 
 完整统计见 `results/udpr_official_baseline.json`。
+
+## 新增实验：时间相位展开与基频 2 分界线
+
+### UDPR 与时间相位展开
+
+统一评测显示，UDPR Stage-II 将全部公开场景的粗相位 MAE 从 0.2023 rad
+降至 0.0986 rad，降低 51.26%；Bad-0.2 从 28.03% 降至 6.67%。该结果说明
+网络细化显著减少了粗 WFT 相位中的大误差，但 RMSE 仍受少量长尾错误影响。
+
+多频、多波长和数论展开在协议仿真中也已实现。它们与 UDPR 的采集帧数、输入
+模态和数据来源不同，因此表中结果用于分析精度—采集成本权衡，不能直接宣称
+某方法在不公平协议下优于另一方法。完整解释见
+[`docs/udpr_vs_temporal_unwrapping_zh.md`](docs/udpr_vs_temporal_unwrapping_zh.md)。
+
+运行方式：
+
+```bash
+PYTHONPATH=. .venv/bin/python scripts/compare_udpr_tpu.py \
+  --root Dataset \
+  --output results/udpr_tpu_comparison
+```
+
+### 基频 2 分界线补全
+
+新增实验研究低频 \(f=2\) 相位级次分界线缺失时，如何通过边界检测、伪边界
+过滤和保形连接恢复二值级次区域，再展开高频相位。默认协议使用 180×240
+图像、低频 2、高频 48、固定随机种子 20260730，并在五次谐波、分界线缺失
+和组合退化三类条件下各生成 30 个二维场景。
+
+该实验揭示了一个重要边界：在组合退化下，单独补线可将 K2 准确率提高到
+96.74%，但高频级次准确率仍只有 32.05%。这说明几何补线能够修复拓扑缺口，
+却不能消除谐波引起的连续相位偏差；后续网络应联合预测边界、区域级次、相位
+修正和置信度，而不是只做二值线条修复。
+
+```bash
+.venv/bin/pip install -r requirements-f2-boundary.txt
+PYTHONPATH=. .venv/bin/python scripts/compare_f2_boundary_source.py \
+  --output results/f2_boundary_vs_source \
+  --scenes 30
+```
+
+算法、图表和限制见
+[`README_F2_EXPERIMENT.md`](README_F2_EXPERIMENT.md) 与
+[`docs/f2_boundary_changes_algorithm_zh.html`](docs/f2_boundary_changes_algorithm_zh.html)。
 
 ## 快速开始
 
@@ -271,6 +324,23 @@ PYTHONPATH=. .venv/bin/pytest -q
 ```
 
 若本地没有官方 `Dataset/`，依赖真实数据的测试会自动跳过。
+
+当前提交在本地运行结果为 `12 passed`。
+
+## 项目结构
+
+```text
+ZeroTrain-FPP/
+├── fringe_repair/       # 数据、模型、物理公式与相位展开算法
+├── scripts/             # 数据评估、方法对比与报告生成入口
+├── tests/               # 单元和集成测试
+├── configs/             # 四步辅助实验配置
+├── docs/                # 中文技术报告及算法说明
+├── paper/               # LaTeX 实验章节
+├── code/                # 独立仿真和早期 U-Net 实验
+├── train.py             # 四步条纹辅助模型训练
+└── test.py              # 四步条纹辅助模型评估
+```
 
 ## 后续实验
 
